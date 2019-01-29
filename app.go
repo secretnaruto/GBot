@@ -13,6 +13,7 @@ import (
 const (
 	FACEBOOK_API = "https://graph.facebook.com/v2.6/me/messages?access_token=%s"
 	IMAGE        = "http://37.media.tumblr.com/e705e901302b5925ffb2bcf3cacb5bcd/tumblr_n6vxziSQD11slv6upo3_500.gif"
+	//VERIFY_TOKEN="EAAbJDuFu5ZA8BAI9BO9UU9Y0SU25doewj5mloJFMuTzAZCW6abt7hHqpoQjROpQMBE7hVk2VdrtICFATeCMEMJchIKUpZCKwCpNRO6gYxPMRsndZBUikVoo6E4GdpMgAjjZAvamEz3qURkhLfMZAJIWuTPXEva1wDH9ACvm91tkQZDZD"
 )
 
 type Callback struct {
@@ -59,6 +60,9 @@ type Payload struct {
 	URL string `json:"url,omitempty"`
 }
 
+func FaviconHandler(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "relative/path/to/favicon.ico")
+}
 
 func HomeEndPoint(w http.ResponseWriter,r *http.Request){
 	fmt.Println(w,"Hello from server :)")
@@ -67,14 +71,16 @@ func HomeEndPoint(w http.ResponseWriter,r *http.Request){
 func VerificationEndpoint(w http.ResponseWriter, r *http.Request) {
 	challenge := r.URL.Query().Get("hub.challenge")
 	token := r.URL.Query().Get("hub.verify_token")
+	fmt.Println(token)
 
-	if token == os.Getenv("VERIFY_TOKEN") {
+	if token == os.Getenv("VERIFY_TOKEN"){
 		w.WriteHeader(200)
 		w.Write([]byte(challenge))
 	} else {
 		w.WriteHeader(404)
 		w.Write([]byte("Error, wrong validation token"))
 	}
+	fmt.Println("hello")
 }
 
 func MessagesEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +117,7 @@ func ProcessMessage(event Messaging) {
 	}
 	body := new(bytes.Buffer)
 	json.NewEncoder(body).Encode(&response)
-	url := fmt.Sprintf(FACEBOOK_API, os.Getenv("PAGE_ACCESS_TOKEN"))
+	url := fmt.Sprintf(FACEBOOK_API,os.Getenv("VERIFY_TOKEN"))
 	req, err := http.NewRequest("POST", url, body)
 	req.Header.Add("Content-Type", "application/json")
 	if err != nil {
@@ -130,7 +136,8 @@ func main(){
 	r := mux.NewRouter()
 	r.HandleFunc("/webhook", VerificationEndpoint).Methods("GET")
 	r.HandleFunc("/webhook", MessagesEndpoint).Methods("POST")
-	if err := http.ListenAndServe("0.0.0.0:8080", r); err != nil {
+	r.HandleFunc("/favicon.ico", FaviconHandler)
+	if err := http.ListenAndServe("0.0.0.0:80", r); err != nil {
 		log.Fatal(err)
 	}
 }
